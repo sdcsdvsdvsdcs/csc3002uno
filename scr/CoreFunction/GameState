@@ -1,1 +1,179 @@
+以下是个完整的GameState.h文件，应该是列出了所有需要在GameState.cpp里面要实现的功能
+至少和文件夹中的CARD和Player需要的东西名称能对接上
 
+
+
+#pragma once
+#include <vector>
+#include <memory>
+#include <functional>
+#include <unordered_map>
+#include <nlohmann/json.hpp>
+#include "Card.h"
+#include "Player.h"
+#include "Deck.h"
+#include "common/GameTypes.h"
+
+namespace UNO {
+
+class GameState {
+public:
+    // 构造函数和析构函数
+    GameState();
+    ~GameState() = default;
+    
+    // 1. 基础游戏状态管理
+    void startGame(const GameConfig& config);
+    void pauseGame();
+    void resumeGame();
+    void endGame();
+    GameStatus getGameStatus() const;
+    
+    void startTurn(int playerId);
+    void endTurn();
+    int getCurrentPlayerId() const;
+    void setCurrentPlayer(int playerId);
+    int getTurnNumber() const;
+    
+    PlayDirection getPlayDirection() const;
+    void reversePlayDirection();
+    
+    CardColor getCurrentColor() const;
+    void setCurrentColor(CardColor color);
+    
+    // 2. 玩家管理功能
+    void addPlayer(std::shared_ptr<Player> player);
+    void removePlayer(int playerId);
+    std::vector<int> getPlayerIds() const;
+    int getPlayerCount() const;
+    std::shared_ptr<Player> getPlayer(int playerId) const;
+    
+    bool isPlayerActive(int playerId) const;
+    std::vector<CardData> getPlayerHand(int playerId) const;
+    int getPlayerScore(int playerId) const;
+    void addPlayerScore(int playerId, int points);
+    
+    int getNextPlayerId() const;
+    int getNextPlayerId(int currentPlayer) const;
+    std::vector<int> getPlayerOrder() const;
+    
+    // 3. 卡牌操作功能
+    void makePlayerDrawCards(int playerId, int count);
+    std::shared_ptr<Card> drawCardForPlayer(int playerId);
+    
+    void discardPlayerCard(int playerId, int cardId);
+    void discardCard(std::shared_ptr<Card> card);
+    
+    void addCardToPlayerHand(int playerId, std::shared_ptr<Card> card);
+    void removeCardFromPlayerHand(int playerId, int cardId);
+    
+    std::shared_ptr<Card> getTopCard() const;
+    int getDrawPileSize() const;
+    int getDiscardPileSize() const;
+    const std::vector<CardData>& getDiscardPile() const;
+    
+    // 4. 特殊效果状态管理
+    void skipPlayerTurn(int playerId);
+    void setSkipCount(int count);
+    int getSkipCount() const;
+    void decrementSkipCount();
+    bool isPlayerSkipped(int playerId) const;
+    
+    void setFlashEffect(CardColor flashColor, int playerId);
+    void clearFlashEffect();
+    bool isFlashEffectActive() const;
+    CardColor getFlashColor() const;
+    int getFlashInitiator() const;
+    void addFlashAffectedPlayer(int playerId);
+    const std::vector<int>& getFlashAffectedPlayers() const;
+    
+    // 5. 规则验证功能
+    bool isValidMove(int playerId, const Card& card, const nlohmann::json& params = {}) const;
+    bool canPlayerPlayCard(int playerId, int cardId) const;
+    bool canPlayerDrawCard(int playerId) const;
+    
+    bool canPlayerPlayWildDrawFour(int playerId) const;
+    bool validateWildDrawFourPlay(int playerId) const;
+    
+    bool shouldPlayerSayUno(int playerId) const;
+    void applyUnoPenalty(int playerId);
+    bool isValidUnoCall(int playerId) const;
+    
+    // 6. 事件通知系统
+    void notifyCardEffect(const std::string& effectType, const nlohmann::json& data);
+    void notifyGameStateChange(GameEventType eventType, const nlohmann::json& data);
+    void notifyPlayerStateChange(int playerId, const std::string& changeType, const nlohmann::json& data);
+    
+    void addEventListener(std::function<void(GameEventType, const nlohmann::json&)> listener);
+    void removeAllEventListeners();
+    
+    // 7. 序列化和持久化
+    nlohmann::json serialize() const;
+    bool deserialize(const nlohmann::json& data);
+    
+    bool validateState() const;
+    
+    GameConfig getGameConfig() const;
+    void setGameConfig(const GameConfig& config);
+    
+    // 8. 统计和信息查询
+    int getTotalTurns() const;
+    int getCardsPlayed() const;
+    int getCardsDrawn() const;
+    std::vector<int> getWinnerIds() const;
+    
+    int getPlayerTurnCount(int playerId) const;
+    int getPlayerCardsPlayed(int playerId) const;
+    int getPlayerCardsDrawn(int playerId) const;
+    
+    std::string getGameId() const;
+    time_t getStartTime() const;
+    time_t getEndTime() const;
+    
+    // 9. 卡牌效果应用支持
+    void applySkipEffect(int targetPlayerId);
+    void applyReverseEffect();
+    void applyDrawTwoEffect(int targetPlayerId);
+    void applyWildEffect(CardColor newColor);
+    void applyWildDrawFourEffect(int targetPlayerId, CardColor newColor);
+    void applyPackageEffect(int playerId, CardColor targetColor);
+    void applyFlashEffect(int playerId, CardColor flashColor);
+    
+    bool isEffectActive(const std::string& effectType) const;
+    void clearEffect(const std::string& effectType);
+    
+    // 10. 配置和初始化
+    void initialize(const GameConfig& config);
+    void reset();
+    
+    void updateConfig(const GameConfig& config);
+    bool isConfigValid(const GameConfig& config) const;
+
+private:
+    // 私有成员变量和辅助方法
+    void emitEvent(GameEventType eventType, const nlohmann::json& data);
+    void initializeDeck();
+    void dealInitialHands();
+    void updateGameStatus();
+    
+    GameStatus currentStatus;
+    PlayDirection playDirection;
+    CardColor currentColor;
+    int currentPlayerId;
+    int turnNumber;
+    GameConfig gameConfig;
+    
+    std::unordered_map<int, std::shared_ptr<Player>> players;
+    std::unique_ptr<Deck> deck;
+    
+    FlashEffectState flashState;
+    int skipCount;
+    
+    std::vector<std::function<void(GameEventType, const nlohmann::json&)>> eventListeners;
+    
+    time_t startTime;
+    time_t endTime;
+    std::string gameId;
+};
+
+} // namespace UNO
