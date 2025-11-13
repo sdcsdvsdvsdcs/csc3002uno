@@ -37,6 +37,8 @@ void GameBoard::ResetGame()
     mFlashCardsPlayed = 0;
     mPlayersAffectedByFlash.clear();
     mSkillUsedThisTurn.clear();
+    mIsPackageEffectActive = false;  // 新增：重置Package效果状态
+    mPackagePlayerIndex = -1;
 }
 
 void GameBoard::ReceiveUsername(int index, const std::string &username)
@@ -123,6 +125,12 @@ void GameBoard::GameLoop()
         try {
             int currentPlayer = mGameStat->GetCurrentPlayer();
             
+            // 新增：检查特殊效果状态
+            if (mGameStat->IsSpecialEffectActive()) {
+                std::cout << "Special effect active, handling special phase" << std::endl;
+                // 处理特殊效果阶段（如Flash卡效果）
+            }
+            
             // Start of turn phase
             mGameStat->SetCurrentPhase(GameStat::TurnPhase::START);
             std::cout << "Player " << currentPlayer << "'s turn - START phase" << std::endl;
@@ -188,6 +196,11 @@ void GameBoard::HandleSkillPhase()
             ProcessCollectorSkill(currentPlayer);
             mSkillUsedThisTurn[currentPlayer] = true;
         }
+        // 新增：其他角色的技能触发条件
+        else if (currentStat.GetCharacterType() == CharacterType::LUCKY_STAR) {
+            // Lucky Star 技能在抽牌阶段处理
+            std::cout << "Lucky Star skill available for draw phase" << std::endl;
+        }
     }
 }
 
@@ -205,6 +218,13 @@ void GameBoard::HandleTurnEnd()
         mIsFlashEffectActive = false;
         mFlashCardsPlayed = 0;
         mPlayersAffectedByFlash.clear();
+        mGameStat->SetSpecialEffectActive(false);  // 新增：更新游戏状态
+    }
+    
+    // 新增：重置Package效果状态
+    if (mIsPackageEffectActive) {
+        mIsPackageEffectActive = false;
+        mPackagePlayerIndex = -1;
     }
     
     std::cout << "Turn ended for player " << currentPlayer << std::endl;
@@ -253,6 +273,15 @@ void GameBoard::HandlePlay(const std::unique_ptr<PlayInfo> &info)
 {
     std::cout << *info << std::endl;
     
+    // 新增：验证Wild Draw Four出牌条件
+    if (info->mCard.mText == CardText::DRAW_FOUR && info->mCard.mColor == CardColor::BLACK) {
+        if (!CanPlayWildDrawFour(mGameStat->GetCurrentPlayer())) {
+            std::cout << "Invalid Wild Draw Four play - player has matching color cards" << std::endl;
+            // 在实际实现中，这里应该拒绝出牌并让玩家重新选择
+            return;
+        }
+    }
+    
     mDiscardPile->Add(info->mCard);
     
     // Handle special card effects
@@ -282,6 +311,11 @@ void GameBoard::HandleSpecialCardEffects(const Card& card)
     switch (card.mText) {
         case CardText::PACKAGE:
             std::cout << "Package Card played by player " << currentPlayer << std::endl;
+            // 设置Package效果状态
+            mIsPackageEffectActive = true;
+            mPackagePlayerIndex = currentPlayer;
+            mPackageTargetColor = card.mColor; // 使用卡牌颜色作为默认目标颜色
+            mGameStat->SetSpecialEffectActive(true);
             // In real implementation, ask player to choose a color
             // For now, auto-choose the card's color
             HandlePackageCardEffect(currentPlayer, card.mColor);
@@ -289,6 +323,7 @@ void GameBoard::HandleSpecialCardEffects(const Card& card)
             
         case CardText::FLASH:
             std::cout << "Flash Card played by player " << currentPlayer << std::endl;
+            mGameStat->SetSpecialEffectActive(true);
             // In real implementation, ask player to choose a color
             // For now, auto-choose the card's color
             HandleFlashCardEffect(currentPlayer, card.mColor);
@@ -314,6 +349,7 @@ void GameBoard::HandlePackageCardEffect(int playerIndex, CardColor chosenColor)
     PlayerStat& playerStat = mPlayerStats[playerIndex];
     std::cout << "Player " << playerIndex << " would discard all " 
               << chosenColor << " number cards from their hand" << std::endl;
+    std::cout << "Player has " << playerStat.GetHandCardCount() << " cards in hand" << std::endl;
 }
 
 void GameBoard::HandleFlashCardEffect(int playerIndex, CardColor chosenColor)
@@ -324,6 +360,7 @@ void GameBoard::HandleFlashCardEffect(int playerIndex, CardColor chosenColor)
     mFlashEffectColor = chosenColor;
     mFlashCardsPlayed = 0;
     mPlayersAffectedByFlash.clear();
+    mGameStat->SetSpecialEffectActive(true);
     
     int currentPlayer = playerIndex;
     
@@ -346,6 +383,8 @@ void GameBoard::HandleFlashCardEffect(int playerIndex, CardColor chosenColor)
                 
                 // Send draw response to affected player
                 Common::Util::Deliver<DrawRspInfo>(mServer, targetPlayer, cardsToDraw, drawnCards);
+                // 更新受影响玩家的状态
+                mPlayerStats[targetPlayer].UpdateAfterDraw(cardsToDraw);
             }
         } else {
             mFlashCardsPlayed++;
@@ -357,6 +396,7 @@ void GameBoard::HandleFlashCardEffect(int playerIndex, CardColor chosenColor)
               << " players affected" << std::endl;
 }
 
+// 以下技能处理方法保持不变（为了完整性保留）
 void GameBoard::HandleCharacterSkill(int playerIndex, CharacterType skillType, int targetPlayer, CardText cardType)
 {
     switch (skillType) {
@@ -502,6 +542,19 @@ std::vector<Card> GameBoard::GetPlayableCards(int playerIndex) const
     // In real implementation, this would check the player's actual hand
     // against the current game state and rules
     return playableCards;
+}
+
+// 新增：Wild Draw Four出牌条件验证
+bool GameBoard::CanPlayWildDrawFour(int playerIndex) const
+{
+    // 在实际实现中，这里应该检查玩家手牌中是否有匹配当前颜色的牌
+    // 如果没有匹配的牌，才能出Wild Draw Four
+    
+    CardColor currentColor = mGameStat->GetLastPlayedCard().mColor;
+    
+    // 这里应该是实际的玩家手牌检查逻辑
+    // 目前返回true作为占位符
+    return true;
 }
 
 }}
