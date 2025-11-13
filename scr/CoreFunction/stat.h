@@ -1,54 +1,29 @@
-// 在 PlayerStat 类中添加角色相关字段
-class PlayerStat {
-public:
-    PlayerStat() {}
-    explicit PlayerStat(const std::string& username, int remainingHandCardsNum);
+#pragma once
 
-    // 添加角色相关方法
-    void AssignCharacter(std::unique_ptr<Character> character);
-    Character* GetCharacter() const { return mCharacter.get(); }
-    bool HasCharacter() const { return mCharacter != nullptr; }
+#include <string>
+#include <memory>
+#include "info.h"
+#include "../common/util.h"
 
-    // 其他现有方法保持不变...
-    void UpdateAfterDraw(int number, int indexOfNewlyDrawn = -1);
-    
-    void UpdateAfterSkip();
-    
-    void UpdateAfterPlay(Card card);
+namespace UNO { namespace Game {
 
-    std::string GetUsername() const { return mUsername; }
+using namespace Network;
 
-    int GetRemainingHandCardsNum() const { return mRemainingHandCardsNum;  }
-
-    bool DoPlayInLastRound() const { return mDoPlayInLastRound; }
-
-    Card GetLastPlayedCard() const { return mLastPlayedCard; }
-
-    bool HasChanceToPlayAfterDraw() const { return mHasChanceToPlayAfterDraw; }
-
-    int GetIndexOfNewlyDrawn() const { return mIndexOfNewlyDrawn; }
-
-    // for test
-    void SetLastPlayedCard(Card lastPlayedCard) { mLastPlayedCard = lastPlayedCard; }
-    
-private:
-    const std::string mUsername;
-    std::unique_ptr<Character> mCharacter;  // 角色指针
-    
-    // 其他现有字段...
-    int mRemainingHandCardsNum;
-    bool mDoPlayInLastRound{false};
-    Card mLastPlayedCard{};
-    bool mHasChanceToPlayAfterDraw{false};
-    int mIndexOfNewlyDrawn{-1};
-
-    friend std::ostream& operator<<(std::ostream& os, const PlayerStat& stat);
-
+// 角色类型枚举
+enum class CharacterType {
+    LUCKY_STAR,
+    COLLECTOR,
+    THIEF,
+    DEFENDER,
+    NONE
 };
 
-// 在 GameStat 中添加回合阶段管理
+// 前向声明
+class Character;
+
 class GameStat {
 public:
+    /// 回合阶段
     enum class TurnPhase {
         START,       // 回合开始阶段
         SKILL,       // 技能使用阶段  
@@ -72,6 +47,8 @@ public:
 
     void Tick();
 
+    void AdvancePhase();
+
     bool IsMyTurn() const { return mCurrentPlayer == 0; }
 
     bool IsSkipped() const { return mLastPlayedCard.mText == CardText::SKIP; }
@@ -88,6 +65,10 @@ public:
 
     int GetCardsNumToDraw() const { return mCardsNumToDraw; }
 
+    TurnPhase GetCurrentPhase() const { return mCurrentPhase; }
+
+    void SetCurrentPhase(TurnPhase phase) { mCurrentPhase = phase; }
+
     void GameEnds() { mGameEnds = true; mCurrentPlayer = -1; }
 
     void Reverse() { mIsInClockwise = !mIsInClockwise; }
@@ -101,20 +82,148 @@ public:
 
     void SetCardsNumToDraw(int cardsNumToDraw) { mCardsNumToDraw = cardsNumToDraw; }
 
-
-    TurnPhase GetCurrentPhase() const { return mCurrentPhase; }
-    void SetCurrentPhase(TurnPhase phase) { mCurrentPhase = phase; }
-    void AdvancePhase();
-
 private:
-    TurnPhase mCurrentPhase{TurnPhase::START};
-
     int mCurrentPlayer;
     bool mIsInClockwise;
     bool mGameEnds{false};
     int mTimeElapsed{0};
+    TurnPhase mCurrentPhase{TurnPhase::START};
 
     // currently the two fields below are not used by GameStat of GameBoard
     Card mLastPlayedCard{};
     int mCardsNumToDraw{1};  // +2 and +4 can accumulate
 };
+
+class PlayerStat {
+public:
+    PlayerStat() {}
+    explicit PlayerStat(const std::string& username, int remainingHandCardsNum);
+
+    void UpdateAfterDraw(int number, int indexOfNewlyDrawn = -1);
+    
+    void UpdateAfterSkip();
+    
+    void UpdateAfterPlay(Card card);
+
+    // 角色相关方法
+    void AssignCharacter(std::unique_ptr<Character> character);
+    Character* GetCharacter() const { return mCharacter.get(); }
+    bool HasCharacter() const { return mCharacter != nullptr; }
+    CharacterType GetCharacterType() const;
+    std::string GetCharacterName() const;
+
+    // 技能管理
+    bool CanUseSkill() const;
+    void UseSkill();
+    void UpdateCharacterCooldown();
+    void ResetCharacterForNewRound();
+
+    std::string GetUsername() const { return mUsername; }
+
+    int GetRemainingHandCardsNum() const { return mRemainingHandCardsNum;  }
+
+    bool DoPlayInLastRound() const { return mDoPlayInLastRound; }
+
+    Card GetLastPlayedCard() const { return mLastPlayedCard; }
+
+    bool HasChanceToPlayAfterDraw() const { return mHasChanceToPlayAfterDraw; }
+
+    int GetIndexOfNewlyDrawn() const { return mIndexOfNewlyDrawn; }
+
+    // for test
+    void SetLastPlayedCard(Card lastPlayedCard) { mLastPlayedCard = lastPlayedCard; }
+
+private:
+    const std::string mUsername;
+    std::unique_ptr<Character> mCharacter;  // 角色指针
+
+    int mRemainingHandCardsNum;
+    bool mDoPlayInLastRound{false};
+    Card mLastPlayedCard{};
+    bool mHasChanceToPlayAfterDraw{false};
+    int mIndexOfNewlyDrawn{-1};
+
+    friend std::ostream& operator<<(std::ostream& os, const PlayerStat& stat);
+};
+
+// 角色基类
+class Character {
+public:
+    Character(CharacterType type, const std::string& name);
+    virtual ~Character() = default;
+
+    CharacterType GetType() const { return mType; }
+    std::string GetName() const { return mName; }
+    int GetUsesRemaining() const { return mUsesRemaining; }
+    bool IsInCooldown() const { return mIsInCooldown; }
+    int GetCooldown() const { return mCooldown; }
+    
+    // 技能使用限制
+    virtual bool CanUseSkill() const = 0;
+    virtual void UseSkill() = 0;
+    virtual void ResetForNewRound() = 0;
+    virtual void UpdateCooldown() = 0;
+
+protected:
+    CharacterType mType;
+    std::string mName;
+    int mUsesRemaining{0};
+    int mCooldown{0};
+    bool mIsInCooldown{false};
+};
+
+// Lucky Star 角色
+class LuckyStar : public Character {
+public:
+    LuckyStar();
+    bool CanUseSkill() const override;
+    void UseSkill() override;
+    void ResetForNewRound() override;
+    void UpdateCooldown() override;
+
+private:
+    static const int MAX_USES = 3;
+};
+
+// Collector 角色
+class Collector : public Character {
+public:
+    Collector();
+    bool CanUseSkill() const override;
+    void UseSkill() override;
+    void ResetForNewRound() override;
+    void UpdateCooldown() override;
+};
+
+// Thief 角色
+class Thief : public Character {
+public:
+    Thief();
+    bool CanUseSkill() const override;
+    void UseSkill() override;
+    void ResetForNewRound() override;
+    void UpdateCooldown() override;
+};
+
+// Defender 角色
+class Defender : public Character {
+public:
+    Defender();
+    bool CanUseSkill() const override;
+    void UseSkill() override;
+    void ResetForNewRound() override;
+    void UpdateCooldown() override;
+    
+    // 防御者特有方法
+    bool TryDefend();
+};
+
+// 角色工厂
+class CharacterFactory {
+public:
+    static std::unique_ptr<Character> CreateCharacter(CharacterType type);
+    static CharacterType GetRandomCharacter();
+    static std::string GetCharacterName(CharacterType type);
+};
+
+}}
