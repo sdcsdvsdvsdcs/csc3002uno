@@ -73,6 +73,10 @@ public:
 
     void Reverse() { mIsInClockwise = !mIsInClockwise; }
 
+    // 新增：检查是否处于特殊效果状态（用于Flash卡等）
+    bool IsSpecialEffectActive() const { return mSpecialEffectActive; }
+    void SetSpecialEffectActive(bool active) { mSpecialEffectActive = active; }
+
     // for tests
     void SetCurrentPlayer(int currentPlayer) { mCurrentPlayer = currentPlayer; }
     
@@ -88,6 +92,7 @@ private:
     bool mGameEnds{false};
     int mTimeElapsed{0};
     TurnPhase mCurrentPhase{TurnPhase::START};
+    bool mSpecialEffectActive{false}; // 新增：标记特殊效果状态
 
     // currently the two fields below are not used by GameStat of GameBoard
     Card mLastPlayedCard{};
@@ -117,6 +122,9 @@ public:
     void UseSkill();
     void UpdateCharacterCooldown();
     void ResetCharacterForNewRound();
+
+    // 新增：获取玩家手牌信息（用于PackageCard等效果）
+    int GetHandCardCount() const { return mRemainingHandCardsNum; }
 
     std::string GetUsername() const { return mUsername; }
 
@@ -164,6 +172,9 @@ public:
     virtual void ResetForNewRound() = 0;
     virtual void UpdateCooldown() = 0;
 
+    // 新增：技能效果应用方法
+    virtual void ApplySkillEffect(GameStat& gameStat, PlayerStat& playerStat) {}
+
 protected:
     CharacterType mType;
     std::string mName;
@@ -180,6 +191,7 @@ public:
     void UseSkill() override;
     void ResetForNewRound() override;
     void UpdateCooldown() override;
+    void ApplySkillEffect(GameStat& gameStat, PlayerStat& playerStat) override;
 
 private:
     static const int MAX_USES = 3;
@@ -193,6 +205,7 @@ public:
     void UseSkill() override;
     void ResetForNewRound() override;
     void UpdateCooldown() override;
+    void ApplySkillEffect(GameStat& gameStat, PlayerStat& playerStat) override;
 };
 
 // Thief 角色
@@ -203,6 +216,7 @@ public:
     void UseSkill() override;
     void ResetForNewRound() override;
     void UpdateCooldown() override;
+    void ApplySkillEffect(GameStat& gameStat, PlayerStat& playerStat) override;
 };
 
 // Defender 角色
