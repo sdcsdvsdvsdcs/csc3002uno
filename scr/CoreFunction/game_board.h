@@ -144,6 +144,11 @@ private:
      */
     std::vector<Card> GetPlayableCards(int playerIndex) const;
 
+    /**
+     * Check if Wild Draw Four can be played by player.
+     */
+    bool CanPlayWildDrawFour(int playerIndex) const;
+
 public:
     // for tests
     const std::unique_ptr<DiscardPile> &GetDiscardPile() const { return mDiscardPile; }
@@ -173,5 +178,9 @@ private:
 
     // Skill usage tracking
     std::map<int, bool> mSkillUsedThisTurn;
+
+    // Package card effect tracking
+    std::map<int, bool> mPackageCardUsed;
 };
+
 }}
