@@ -20,6 +20,7 @@ void GameStat::NextPlayer()
         Common::Util::WrapWithPlayerNum(mCurrentPlayer - 1);
     mTimeElapsed = 0;
     mCurrentPhase = TurnPhase::START; // 新回合开始
+    mSpecialEffectActive = false; // 新回合开始时重置特殊效果状态
 }
 
 void GameStat::UpdateAfterDraw()
@@ -217,6 +218,11 @@ void LuckyStar::UpdateCooldown() {
     }
 }
 
+void LuckyStar::ApplySkillEffect(GameStat& gameStat, PlayerStat& playerStat) {
+    // Lucky Star 技能效果：查看牌堆顶三张牌并选择一张
+    // 具体实现在游戏逻辑中处理
+}
+
 // Collector 实现
 Collector::Collector()
     : Character(CharacterType::COLLECTOR, "Collector")
@@ -253,6 +259,11 @@ void Collector::UpdateCooldown() {
     }
 }
 
+void Collector::ApplySkillEffect(GameStat& gameStat, PlayerStat& playerStat) {
+    // Collector 技能效果：从弃牌堆选择一张牌加入手牌
+    // 具体实现在游戏逻辑中处理
+}
+
 // Thief 实现
 Thief::Thief()
     : Character(CharacterType::THIEF, "Thief")
@@ -287,6 +298,11 @@ void Thief::UpdateCooldown() {
             mIsInCooldown = false;
         }
     }
+}
+
+void Thief::ApplySkillEffect(GameStat& gameStat, PlayerStat& playerStat) {
+    // Thief 技能效果：偷取其他玩家的卡牌
+    // 具体实现在游戏逻辑中处理
 }
 
 // Defender 实现
