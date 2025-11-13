@@ -145,7 +145,7 @@ private:
     std::vector<Card> GetPlayableCards(int playerIndex) const;
 
     /**
-     * Check if Wild Draw Four can be played by player.
+     * Check if Wild Draw Four card can be played by player.
      */
     bool CanPlayWildDrawFour(int playerIndex) const;
 
@@ -178,9 +178,10 @@ private:
 
     // Skill usage tracking
     std::map<int, bool> mSkillUsedThisTurn;
-
-    // Package card effect tracking
-    std::map<int, bool> mPackageCardUsed;
+    
+    // 新增：Package Card效果状态
+    bool mIsPackageEffectActive{false};
+    int mPackagePlayerIndex{-1};
+    CardColor mPackageTargetColor{CardColor::RED};
 };
-
 }}
